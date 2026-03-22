@@ -1,0 +1,27 @@
+#!/bin/sh
+# Apenas lembrete — não impede o commit. Ative com: git config core.hooksPath .githooks
+
+STAGED_FILES=$(git diff --cached --name-only 2>/dev/null) || exit 0
+
+touching_src=false
+for f in $STAGED_FILES; do
+  case "$f" in
+    app/*|components/*|lib/*) touching_src=true; break ;;
+  esac
+done
+
+changelog_staged=false
+for f in $STAGED_FILES; do
+  case "$f" in
+    CHANGELOG.md) changelog_staged=true; break ;;
+  esac
+done
+
+if $touching_src && ! $changelog_staged; then
+  echo "" >&2
+  echo "  [changelog] Você incluiu mudanças em app/, components/ ou lib/, mas não em CHANGELOG.md." >&2
+  echo "  [changelog] Considere adicionar um item em [Não publicado] no CHANGELOG.md neste commit." >&2
+  echo "" >&2
+fi
+
+exit 0
