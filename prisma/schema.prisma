@@ -1,13 +1,83 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  organizerSlug String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  raffles       Raffle[]
+}
+
+enum RaffleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Raffle {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug         String
+  title        String
+  priceCents   Int           @default(4000)
+  totalNumbers Int           @default(1000)
+  pixKey       String        @default("69999657952")
+  status       RaffleStatus  @default(PUBLISHED)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  numbers      RaffleNumber[]
+  reservations Reservation[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+}
+
+enum NumberStatus {
+  AVAILABLE
+  HELD
+  SOLD
+}
+
+model RaffleNumber {
+  id            String         @id @default(cuid())
+  raffleId      String
+  raffle        Raffle         @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  value         Int
+  status        NumberStatus   @default(AVAILABLE)
+  reservationId String?
+  reservation   Reservation?   @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@unique([raffleId, value])
+  @@index([raffleId])
+  @@index([reservationId])
+}
+
+enum ReservationStatus {
+  PENDING_PAYMENT
+  PAID
+}
+
+model Reservation {
+  id          String              @id @default(cuid())
+  raffleId    String
+  raffle      Raffle              @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  buyerName   String
+  buyerPhone  String
+  totalCents  Int
+  status      ReservationStatus   @default(PENDING_PAYMENT)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  numbers     RaffleNumber[]
+
+  @@index([raffleId])
+  @@index([status])
 }
