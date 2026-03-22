@@ -23,7 +23,7 @@ export const SiteHeader = () => (
             Entrar
           </Link>
           <Link
-            href="/painel"
+            href="/painel/rifas"
             className="text-muted-foreground hover:text-foreground"
           >
             Painel

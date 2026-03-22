@@ -4,7 +4,33 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isReservedOrganizerSlug } from "@/lib/reserved-slugs";
-import { isValidSlug, normalizeSlug } from "@/lib/slug";
+import { digitsFromPhoneInput } from "@/lib/brazil-phone";
+import {
+  isValidSlug,
+  nextRaffleSlugCandidate,
+  normalizeSlug,
+  raffleSlugFromTitle,
+} from "@/lib/slug";
+
+function assertOrganizerWhatsappDigits(raw: string): string {
+  const d = digitsFromPhoneInput(raw);
+  if (d.length < 10 || d.length > 11) {
+    throw new Error("WhatsApp: informe DDD + número (10 ou 11 dígitos).");
+  }
+  return d;
+}
+
+/** Vazio permitido (rifas antigas); se preenchido, deve ter 10 ou 11 dígitos. */
+function normalizeOrganizerWhatsappForUpdate(raw: string): string {
+  const d = digitsFromPhoneInput(raw);
+  if (d.length === 0) return "";
+  if (d.length < 10 || d.length > 11) {
+    throw new Error(
+      "WhatsApp: informe DDD + número (10 ou 11 dígitos) ou deixe vazio.",
+    );
+  }
+  return d;
+}
 
 export async function registerOrganizer(formData: {
   email: string;
@@ -37,30 +63,55 @@ export async function registerOrganizer(formData: {
 
 export async function createRaffle(formData: {
   title: string;
-  slug: string;
   priceCents: number;
   totalNumbers: number;
   pixKey: string;
+  whatsappPhone: string;
   status: "DRAFT" | "PUBLISHED";
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Não autorizado.");
 
-  const slug = normalizeSlug(formData.slug);
-  if (!isValidSlug(slug)) throw new Error("Slug da rifa inválido.");
+  const title = formData.title.trim();
+  let slug = raffleSlugFromTitle(title);
+  if (!isValidSlug(slug)) {
+    throw new Error(
+      "Use um título que gere um link válido (ao menos 2 caracteres: letras, números ou palavras separadas por hífen).",
+    );
+  }
 
   const totalNumbers = Math.min(Math.max(1, formData.totalNumbers), 10_000);
   const priceCents = Math.max(1, formData.priceCents);
+  const whatsappPhone = assertOrganizerWhatsappDigits(formData.whatsappPhone);
 
   const raffle = await prisma.$transaction(async (tx) => {
+    const userId = session.user!.id;
+    const base = slug;
+    let counter = 2;
+    for (;;) {
+      const taken = await tx.raffle.findFirst({
+        where: { userId, slug },
+        select: { id: true },
+      });
+      if (!taken) break;
+      slug = nextRaffleSlugCandidate(base, counter);
+      if (!isValidSlug(slug)) {
+        slug = `rifa-${userId.slice(-6)}-${counter}`.slice(0, 60);
+        if (!isValidSlug(slug)) throw new Error("Não foi possível gerar um link único para a rifa.");
+      }
+      counter += 1;
+      if (counter > 10_000) throw new Error("Não foi possível gerar um link único para a rifa.");
+    }
+
     const r = await tx.raffle.create({
       data: {
-        userId: session.user!.id,
+        userId,
         slug,
-        title: formData.title.trim(),
+        title,
         priceCents,
         totalNumbers,
         pixKey: formData.pixKey.trim() || "69999657952",
+        whatsappPhone,
         status: formData.status,
       },
     });
@@ -93,6 +144,7 @@ export async function updateRaffle(
   formData: {
     title: string;
     pixKey: string;
+    whatsappPhone: string;
     status: "DRAFT" | "PUBLISHED";
   },
 ) {
@@ -104,11 +156,29 @@ export async function updateRaffle(
   });
   if (!raffle) throw new Error("Rifa não encontrada.");
 
+  const whatsappPhone = normalizeOrganizerWhatsappForUpdate(formData.whatsappPhone);
+
+  // Only safe fields: title, pixKey, whatsappPhone, status. Never slug / priceCents / totalNumbers.
+  if (
+    raffle.status === "PUBLISHED" &&
+    formData.status === "DRAFT"
+  ) {
+    const hasReservations = await prisma.reservation.count({
+      where: { raffleId },
+    });
+    if (hasReservations > 0) {
+      throw new Error(
+        "Não é possível voltar para rascunho: já existem pedidos nesta rifa. Os compradores precisam do link público.",
+      );
+    }
+  }
+
   await prisma.raffle.update({
     where: { id: raffleId },
     data: {
       title: formData.title.trim(),
       pixKey: formData.pixKey.trim(),
+      whatsappPhone,
       status: formData.status,
     },
   });

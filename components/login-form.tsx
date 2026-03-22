@@ -38,7 +38,7 @@ export const LoginForm = () => {
         toast.error("E-mail ou senha incorretos");
         return;
       }
-      router.push("/painel");
+      router.push("/painel/rifas");
       router.refresh();
     } finally {
       setLoading(false);

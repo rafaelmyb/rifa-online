@@ -57,7 +57,7 @@ export const RegisterForm = () => {
         router.push("/login");
         return;
       }
-      router.push("/painel");
+      router.push("/painel/rifas");
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao cadastrar");

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { createPurchase } from "@/lib/actions/purchase";
 import {
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RaffleNumberGrid } from "@/components/raffle-number-grid";
+import { formatBrazilPhoneAsYouType } from "@/lib/brazil-phone";
 
 type NumberRow = { value: number; status: "AVAILABLE" | "HELD" | "SOLD" };
 
@@ -53,10 +54,7 @@ export const RafflePurchaseForm = ({
     name: "selectedNumbers",
   });
 
-  const selectedSet = useMemo(
-    () => new Set(selectedArr ?? []),
-    [selectedArr],
-  );
+  const selectedSet = useMemo(() => new Set(selectedArr ?? []), [selectedArr]);
 
   const toggleNumber = (value: number) => {
     const current = form.getValues("selectedNumbers");
@@ -119,11 +117,24 @@ export const RafflePurchaseForm = ({
         </div>
         <div className="space-y-2">
           <Label htmlFor="buyerPhone">Telefone</Label>
-          <Input
-            id="buyerPhone"
-            type="tel"
-            autoComplete="tel"
-            {...form.register("buyerPhone")}
+          <Controller
+            control={form.control}
+            name="buyerPhone"
+            render={({ field: { onChange, onBlur, value, ref } }) => (
+              <Input
+                id="buyerPhone"
+                ref={ref}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="(00) 00000-0000"
+                value={value}
+                onBlur={onBlur}
+                onChange={(e) => {
+                  onChange(formatBrazilPhoneAsYouType(e.target.value));
+                }}
+              />
+            )}
           />
           {form.formState.errors.buyerPhone && (
             <p className="text-destructive text-sm">
@@ -170,10 +181,10 @@ export const RafflePurchaseForm = ({
       <Button
         type="submit"
         size="lg"
-        className="w-full sm:w-auto"
+        className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
         disabled={!isValid || submitting}
       >
-        {submitting ? "Processando…" : "Confirmar compra"}
+        {submitting ? "Processando…" : "Confirmar reserva"}
       </Button>
     </form>
   );

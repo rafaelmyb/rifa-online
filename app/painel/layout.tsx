@@ -20,9 +20,6 @@ export default async function PainelLayout({
         <PageContainer>
           <div className="flex h-12 items-center justify-between gap-4">
             <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
-              <Link href="/painel" className="hover:text-primary">
-                Início
-              </Link>
               <Link href="/painel/rifas" className="hover:text-primary">
                 Minhas rifas
               </Link>

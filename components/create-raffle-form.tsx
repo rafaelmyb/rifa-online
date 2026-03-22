@@ -1,41 +1,78 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createRaffle } from "@/lib/actions/raffle-crud";
+import {
+  digitsFromPhoneInput,
+  formatBrazilPhoneAsYouType,
+} from "@/lib/brazil-phone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const schema = z.object({
-  title: z.string().min(2, "Título obrigatório"),
-  slug: z.string().min(2, "Slug obrigatório"),
-  priceReais: z.number().positive("Preço inválido"),
-  totalNumbers: z.number().int().min(1).max(10000),
-  pixKey: z.string().min(1, "Chave PIX obrigatória"),
-  status: z.enum(["DRAFT", "PUBLISHED"]),
-});
+const schema = z
+  .object({
+    title: z.string().min(2, "Título obrigatório"),
+    priceReais: z
+      .string()
+      .min(1, "Informe o preço")
+      .transform((s) => Number(s.replace(",", ".")))
+      .refine((n) => Number.isFinite(n) && n > 0, "Preço inválido"),
+    totalNumbers: z
+      .string()
+      .min(1, "Informe a quantidade")
+      .transform((s) => parseInt(s, 10))
+      .refine(
+        (n) => Number.isInteger(n) && n >= 1 && n <= 10000,
+        "Quantidade entre 1 e 10.000",
+      ),
+    pixKey: z.string().min(1, "Chave PIX obrigatória"),
+    whatsappPhone: z.string(),
+    status: z.enum(["DRAFT", "PUBLISHED"]),
+  })
+  .superRefine((data, ctx) => {
+    const d = digitsFromPhoneInput(data.whatsappPhone);
+    if (d.length < 10 || d.length > 11) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe o WhatsApp com DDD (10 ou 11 dígitos).",
+        path: ["whatsappPhone"],
+      });
+    }
+  });
 
-type FormValues = z.infer<typeof schema>;
+type FormInputValues = z.input<typeof schema>;
+type FormValues = z.output<typeof schema>;
+
+const emptyDefaults: FormInputValues = {
+  title: "",
+  priceReais: "",
+  totalNumbers: "",
+  pixKey: "",
+  whatsappPhone: "",
+  status: "DRAFT",
+};
 
 export const CreateRaffleForm = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(false);
-  const form = useForm<FormValues>({
+  const form = useForm<FormInputValues, unknown, FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: "",
-      slug: "",
-      priceReais: 40,
-      totalNumbers: 1000,
-      pixKey: "69999657952",
-      status: "PUBLISHED",
-    },
+    defaultValues: emptyDefaults,
   });
+
+  const { reset } = form;
+  useEffect(() => {
+    if (pathname === "/painel/rifas/nova") {
+      reset(emptyDefaults);
+    }
+  }, [pathname, reset]);
 
   const onSubmit = form.handleSubmit(async (data) => {
     setLoading(true);
@@ -43,10 +80,10 @@ export const CreateRaffleForm = () => {
       const priceCents = Math.round(data.priceReais * 100);
       const id = await createRaffle({
         title: data.title,
-        slug: data.slug,
         priceCents,
         totalNumbers: data.totalNumbers,
         pixKey: data.pixKey,
+        whatsappPhone: data.whatsappPhone,
         status: data.status,
       });
       toast.success("Rifa criada");
@@ -69,15 +106,11 @@ export const CreateRaffleForm = () => {
             {form.formState.errors.title.message}
           </p>
         )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="slug">Slug (URL da rifa)</Label>
-        <Input id="slug" placeholder="ex: rifa-moto" {...form.register("slug")} />
-        {form.formState.errors.slug && (
-          <p className="text-destructive text-sm">
-            {form.formState.errors.slug.message}
-          </p>
-        )}
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          O link público da rifa será gerado a partir do título (minúsculas e
+          hífens entre as palavras). Esse link não muda se você editar o título
+          depois.
+        </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -86,7 +119,8 @@ export const CreateRaffleForm = () => {
             id="priceReais"
             type="number"
             step="0.01"
-            {...form.register("priceReais", { valueAsNumber: true })}
+            placeholder="0,00"
+            {...form.register("priceReais")}
           />
         </div>
         <div className="space-y-2">
@@ -94,13 +128,46 @@ export const CreateRaffleForm = () => {
           <Input
             id="totalNumbers"
             type="number"
-            {...form.register("totalNumbers", { valueAsNumber: true })}
+            placeholder="0"
+            min={1}
+            max={10000}
+            {...form.register("totalNumbers")}
           />
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="pixKey">Chave PIX</Label>
         <Input id="pixKey" {...form.register("pixKey")} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="whatsappPhone">WhatsApp (comprovante)</Label>
+        <Controller
+          control={form.control}
+          name="whatsappPhone"
+          render={({ field: { onChange, onBlur, value, ref } }) => (
+            <Input
+              id="whatsappPhone"
+              ref={ref}
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder="(00) 00000-0000"
+              value={value}
+              onBlur={onBlur}
+              onChange={(e) => {
+                onChange(formatBrazilPhoneAsYouType(e.target.value));
+              }}
+            />
+          )}
+        />
+        {form.formState.errors.whatsappPhone && (
+          <p className="text-destructive text-sm">
+            {form.formState.errors.whatsappPhone.message}
+          </p>
+        )}
+        <p className="text-muted-foreground text-xs">
+          Número em que o comprador enviará o comprovante do PIX.
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="status">Status</Label>

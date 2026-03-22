@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { digitsFromPhoneInput } from "@/lib/brazil-phone";
 import { prisma } from "@/lib/prisma";
 
 export type PurchaseResult =
@@ -16,6 +17,11 @@ export async function createPurchase(
 ): Promise<PurchaseResult> {
   if (!selectedValues.length) {
     return { ok: false, error: "Selecione ao menos um número." };
+  }
+
+  const phoneDigits = digitsFromPhoneInput(buyerPhone);
+  if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+    return { ok: false, error: "Telefone inválido." };
   }
 
   try {
@@ -48,7 +54,7 @@ export async function createPurchase(
           data: {
             raffleId,
             buyerName: buyerName.trim(),
-            buyerPhone: buyerPhone.trim(),
+            buyerPhone: phoneDigits,
             totalCents,
             status: "PENDING_PAYMENT",
           },

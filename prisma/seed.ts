@@ -38,6 +38,7 @@ async function main() {
         priceCents: 4000,
         totalNumbers: 1000,
         pixKey: "69999657952",
+        whatsappPhone: "69999657952",
         status: "PUBLISHED",
       },
     });
@@ -53,6 +54,11 @@ async function main() {
         })),
       });
     }
+  } else if (!raffle.whatsappPhone) {
+    await prisma.raffle.update({
+      where: { id: raffle.id },
+      data: { whatsappPhone: "69999657952" },
+    });
   }
 
   console.log("Seed OK:", { email, organizerSlug, raffleSlug });

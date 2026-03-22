@@ -30,8 +30,9 @@ model Raffle {
   title        String
   priceCents   Int           @default(4000)
   totalNumbers Int           @default(1000)
-  pixKey       String        @default("69999657952")
-  status       RaffleStatus  @default(PUBLISHED)
+  pixKey         String        @default("69999657952")
+  whatsappPhone  String        @default("")
+  status         RaffleStatus  @default(PUBLISHED)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   numbers      RaffleNumber[]

@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions/reservations-admin";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/lib/button-variants";
+import { formatBrazilPhoneAsYouType } from "@/lib/brazil-phone";
 import { cn } from "@/lib/utils";
 import {
   Table,
@@ -88,7 +89,9 @@ export const ReservationsAdminList = ({
               rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.buyerName}</TableCell>
-                  <TableCell>{r.buyerPhone}</TableCell>
+                  <TableCell>
+                    {formatBrazilPhoneAsYouType(r.buyerPhone)}
+                  </TableCell>
                   <TableCell className="max-w-[200px] truncate text-xs">
                     {r.numbers}
                   </TableCell>
@@ -106,26 +109,22 @@ export const ReservationsAdminList = ({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-1">
-                      {r.status === "PENDING_PAYMENT" ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="default"
-                            disabled={pending}
-                            onClick={() => paid(r.id)}
-                          >
-                            Pago
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={pending}
-                            onClick={() => remove(r.id)}
-                          >
-                            Excluir
-                          </Button>
-                        </>
-                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="default"
+                        disabled={pending || r.status === "PAID"}
+                        onClick={() => paid(r.id)}
+                      >
+                        Pago
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => remove(r.id)}
+                      >
+                        Excluir
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

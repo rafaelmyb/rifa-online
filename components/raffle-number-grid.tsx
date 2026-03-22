@@ -33,15 +33,16 @@ export const RaffleNumberGrid = ({
               disabled={taken}
               onClick={() => onToggle(value)}
               className={cn(
-                "flex min-h-9 min-w-0 items-center justify-center rounded-md border text-xs font-medium transition-colors sm:text-sm",
+                // Preflight costuma reduzir opacity em disabled — isso apagava o fundo dos tomados.
+                "flex min-h-9 min-w-0 items-center justify-center rounded-md border text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-100 sm:text-sm",
                 taken &&
-                  "cursor-not-allowed border-muted bg-muted/50 text-muted-foreground",
+                  "border-zinc-600 bg-zinc-500 text-zinc-950 dark:border-zinc-500 dark:bg-zinc-700 dark:text-zinc-50",
                 !taken &&
                   !isSelected &&
-                  "border-border bg-card hover:bg-accent hover:text-accent-foreground",
+                  "border-border bg-muted/40 text-foreground hover:bg-muted hover:text-foreground",
                 !taken &&
                   isSelected &&
-                  "border-primary bg-primary text-primary-foreground",
+                  "border-green-700 bg-green-600 text-white hover:bg-green-600 dark:border-green-600 dark:bg-green-600 dark:hover:bg-green-600",
               )}
             >
               {value}
