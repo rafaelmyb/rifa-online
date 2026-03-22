@@ -13,12 +13,7 @@ export default function HomePage() {
           </h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Plataforma para organizadores criarem rifas e compradores escolherem
-            números com pagamento via PIX. Após o seed, a rifa de demonstração
-            fica em{" "}
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">
-              /demo/rifa-principal
-            </code>
-            .
+            números com pagamento via PIX.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -35,7 +30,9 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "lg" }),
+              )}
             >
               Entrar
             </Link>
